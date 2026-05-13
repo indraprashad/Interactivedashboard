@@ -73,7 +73,7 @@ export function DashboardPage() {
         className="max-w-[1400px] mx-auto"
       >
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 bg-white rounded-lg p-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
             <div>
               <p className="text-[#8a8a8a] text-sm mb-1">Dashboard / FY 2025-26</p>

@@ -41,7 +41,7 @@ export function FarmRegistryPage() {
         className="max-w-[1400px] mx-auto"
       >
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 bg-white rounded-lg p-4">
           <p className="text-[#8a8a8a] text-sm mb-1">Farm Registry / FRM-1002 / Lhamo Poultry</p>
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div className="flex items-start gap-4">

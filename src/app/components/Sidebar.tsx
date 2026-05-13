@@ -9,25 +9,64 @@ import {
   Users,
   LogOut,
   Menu,
-  X
+  X,
+  Shield,
+  ChevronRight,
 } from "lucide-react";
+
 import imgImage1 from "../../imports/Group1/c2f1f828417fb5a7a6ec38e739df5d359d6431bc.png";
-import imgEllipse1 from "../../imports/Group1/24ecce4f34ea964d966110252b5c657e874d5c27.png";
+import { useAuth } from "../../auth/AuthContext";
 
 interface NavItem {
   id: string;
   label: string;
   icon: React.ElementType;
+  permission?: string;
 }
 
 const navItems: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "assessments", label: "Assessments", icon: BookOpen },
-  { id: "farm-registry", label: "Farm registry", icon: Home },
-  { id: "non-compliance", label: "Non-compliance", icon: Flag },
-  { id: "reports", label: "Reports", icon: FileText },
-  { id: "risk-map", label: "Risk map", icon: Map },
-  { id: "user-management", label: "User Management", icon: Users },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    permission: "view_dashboard",
+  },
+  {
+    id: "assessments",
+    label: "Assessments",
+    icon: BookOpen,
+    permission: "view_assessments",
+  },
+  {
+    id: "farm-registry",
+    label: "Farm Registry",
+    icon: Home,
+    permission: "view_farm_registry",
+  },
+  {
+    id: "non-compliance",
+    label: "Non-compliance",
+    icon: Flag,
+    permission: "view_non_compliance",
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: FileText,
+    permission: "view_reports",
+  },
+  {
+    id: "risk-map",
+    label: "Risk Map",
+    icon: Map,
+    permission: "view_dashboard",
+  },
+  {
+    id: "user-management",
+    label: "User Management",
+    icon: Users,
+    permission: "view_user_management",
+  },
 ];
 
 interface SidebarProps {
@@ -35,8 +74,14 @@ interface SidebarProps {
   onViewChange: (view: string) => void;
 }
 
-export function Sidebar({ activeView, onViewChange }: SidebarProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+export function Sidebar({
+  activeView,
+  onViewChange,
+}: SidebarProps) {
+  const { user, logout, hasPermission } = useAuth();
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] =
+    useState(false);
 
   const handleNavClick = (viewId: string) => {
     onViewChange(viewId);
@@ -45,112 +90,353 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Toggle */}
       <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#0b1f1a] text-white rounded-lg shadow-lg"
+        onClick={() =>
+          setIsMobileMenuOpen(!isMobileMenuOpen)
+        }
+        className="
+          lg:hidden fixed top-4 left-4 z-50
+          flex items-center justify-center
+          w-11 h-11 rounded-xl
+          bg-[#102821]
+          border border-white/10
+          text-white
+          shadow-2xl backdrop-blur-md
+          transition-all duration-200
+          hover:scale-105
+        "
         aria-label="Toggle menu"
       >
-        {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {isMobileMenuOpen ? (
+          <X className="w-5 h-5" />
+        ) : (
+          <Menu className="w-5 h-5" />
+        )}
       </button>
 
-      {/* Overlay for mobile */}
+      {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30"
-          onClick={() => setIsMobileMenuOpen(false)}
+          className="
+            lg:hidden fixed inset-0 z-30
+            bg-black/60 backdrop-blur-sm
+          "
+          onClick={() =>
+            setIsMobileMenuOpen(false)
+          }
         />
       )}
 
       {/* Sidebar */}
-      <div
+      <aside
         className={`
-          fixed lg:relative h-screen w-[280px] lg:w-[320px] bg-[#0b1f1a] flex flex-col z-40
+          fixed lg:relative top-0 left-0 z-40
+          h-screen w-[290px] lg:w-[320px]
+          overflow-hidden
           transition-transform duration-300 ease-in-out
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${
+            isMobileMenuOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
+          }
         `}
-        style={{ fontFamily: 'Manrope, sans-serif' }}
+        style={{
+          fontFamily: "Manrope, sans-serif",
+        }}
       >
-      {/* Background effects */}
-      <div className="absolute inset-0 rounded-[20px] shadow-[0px_8px_40px_0px_rgba(0,0,0,0.12)]">
-        <div aria-hidden="true" className="absolute inset-0 pointer-events-none rounded-[20px]">
-          <div className="absolute bg-[#0b1f1a] inset-0 mix-blend-color-dodge rounded-[20px]" />
-          <div className="absolute bg-[rgba(11,31,26,0.7)] inset-0 rounded-[20px]" />
-        </div>
-      </div>
+        {/* Background */}
+        <div
+          className="
+            absolute inset-0
+            bg-gradient-to-b
+            from-[#102821]
+            via-[#0d221c]
+            to-[#081612]
+          "
+        />
 
-      <div className="absolute inset-0 pointer-events-none rounded-[20px]">
-        <div aria-hidden="true" className="absolute bg-[rgba(0,0,0,0)] inset-0 rounded-[20px]" />
-        <div className="absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_14px_0px_rgba(0,0,0,0.25)]" />
-      </div>
+        {/* Decorative glow */}
+        <div
+          className="
+            absolute -top-32 -left-20
+            h-72 w-72 rounded-full
+            bg-[#1a6b58]/20 blur-3xl
+          "
+        />
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col h-full px-4 pt-11 lg:pt-11 pt-16">
-        {/* Logo and Title */}
-        <div className="flex items-center gap-3 lg:gap-6 mb-8 lg:mb-12">
-          <div className="h-[60px] w-[60px] lg:h-[80px] lg:w-[80px]">
-            <img alt="BBAS Logo" className="w-full h-full object-cover" src={imgImage1} />
-          </div>
-          <div>
-            <h1 className="text-white text-[28px] lg:text-[36px] font-bold leading-tight">BBAS</h1>
-            <p className="text-[#9db9a4] text-[14px] lg:text-[18px]">System Admin</p>
-          </div>
-        </div>
+        <div
+          className="
+            absolute bottom-0 right-0
+            h-64 w-64 rounded-full
+            bg-[#c2410c]/10 blur-3xl
+          "
+        />
 
-        {/* Divider */}
-        <div className="w-full h-[1px] bg-[#8A8A8A] mb-10" />
+        {/* Border */}
+        <div
+          className="
+            absolute inset-0
+            border-r border-white/10
+            backdrop-blur-xl
+          "
+        />
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-2 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={`
-                  w-full h-[50px] lg:h-[55px] flex items-center gap-3 lg:gap-4 px-3 lg:px-[18px] rounded-[10px]
-                  transition-all duration-200 ease-in-out
-                  ${isActive
-                    ? 'bg-[#c2410c] text-white shadow-lg'
-                    : 'text-[#8a8a8a] hover:bg-[#1a2f2a] hover:text-[#9db9a4]'
-                  }
-                `}
-              >
-                <Icon className="w-5 h-5 lg:w-6 lg:h-6 flex-shrink-0" />
-                <span className="text-[16px] lg:text-[18px] font-bold truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Bottom section */}
-        <div className="mt-auto pb-4">
-          <div className="w-full h-[1px] bg-[#8A8A8A] mb-4" />
-
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-[50px] h-[50px] lg:w-[60px] lg:h-[60px] flex-shrink-0">
-                <img alt="User" className="w-full h-full rounded-full" src={imgEllipse1} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-white text-[16px] lg:text-[20px] font-bold truncate">Indra Adhikari</p>
-                <p className="text-[#9db9a4] text-[12px] lg:text-[14px] truncate">System Admin</p>
-              </div>
+        {/* Content */}
+        <div
+          className="
+            relative z-10
+            flex h-full flex-col
+            px-5 pt-16 lg:pt-10 pb-5
+          "
+        >
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <div
+              className="
+                flex items-center justify-center
+                h-[72px] w-[72px]
+                rounded-2xl
+                bg-white/5
+                border border-white/10
+                shadow-lg
+                overflow-hidden
+              "
+            >
+              <img
+                alt="BBAS Logo"
+                className="h-full w-full object-cover"
+                src={imgImage1}
+              />
             </div>
 
-            <button
-              className="w-[36px] h-[36px] lg:w-[39px] lg:h-[39px] rounded-full bg-[#808080] flex items-center justify-center hover:bg-[#9a9a9a] transition-colors flex-shrink-0"
-              aria-label="Logout"
+            <div className="min-w-0">
+              <h1
+                className="
+                  text-white text-[30px]
+                  font-extrabold tracking-tight
+                "
+              >
+                BBAS
+              </h1>
+
+              <p
+                className="
+                  text-[#9db9a4]
+                  text-sm font-medium
+                "
+              >
+                Biosecurity System
+              </p>
+            </div>
+          </div>
+
+          {/* User Badge */}
+          <div
+            className="
+              mt-6
+              rounded-2xl
+              border border-white/10
+              bg-white/[0.04]
+              p-4
+              backdrop-blur-sm
+            "
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="
+                  flex h-12 w-12 items-center justify-center
+                  rounded-full
+                  bg-gradient-to-br
+                  from-[#1a6b58]
+                  to-[#14483c]
+                  shadow-lg
+                "
+              >
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+
+              <div className="min-w-0">
+                <p
+                  className="
+                    truncate
+                    text-base font-semibold text-white
+                  "
+                >
+                  {user?.name || "User"}
+                </p>
+
+                <p
+                  className="
+                    truncate
+                    text-sm text-[#9db9a4]
+                  "
+                >
+                  {user?.role || "System User"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Label */}
+          <div
+            className="
+              mt-8 mb-3
+              px-2
+              text-xs font-semibold
+              uppercase tracking-[0.18em]
+              text-[#6f8a7b]
+            "
+          >
+            Navigation
+          </div>
+
+          {/* Navigation */}
+          <nav
+            className="
+              flex-1
+              space-y-2
+              overflow-y-auto
+              pr-1
+            "
+          >
+            {navItems
+              .filter(
+                (item) =>
+                  !item.permission ||
+                  hasPermission(item.permission)
+              )
+              .map((item) => {
+                const Icon = item.icon;
+
+                const isActive =
+                  activeView === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() =>
+                      handleNavClick(item.id)
+                    }
+                    className={`
+                      group relative
+                      flex w-full items-center
+                      gap-3 rounded-2xl
+                      px-4 py-3
+                      transition-all duration-200
+                      ${
+                        isActive
+                          ? `
+                            bg-gradient-to-r
+                            from-[#c2410c]
+                            to-[#d97706]
+                            text-white
+                            shadow-xl
+                            shadow-orange-950/30
+                          `
+                          : `
+                            text-[#9aa8a2]
+                            hover:bg-white/[0.06]
+                            hover:text-white
+                          `
+                      }
+                    `}
+                  >
+                    {/* Active indicator */}
+                    {isActive && (
+                      <div
+                        className="
+                          absolute left-0 top-1/2
+                          h-8 w-1
+                          -translate-y-1/2
+                          rounded-r-full
+                          bg-white
+                        "
+                      />
+                    )}
+
+                    <div
+                      className={`
+                        flex h-10 w-10
+                        items-center justify-center
+                        rounded-xl
+                        transition-all duration-200
+                        ${
+                          isActive
+                            ? "bg-white/15"
+                            : "bg-white/[0.04] group-hover:bg-white/[0.08]"
+                        }
+                      `}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                    </div>
+
+                    <span
+                      className="
+                        flex-1 text-left
+                        text-[15px]
+                        font-semibold
+                      "
+                    >
+                      {item.label}
+                    </span>
+
+                    <ChevronRight
+                      className={`
+                        h-4 w-4
+                        transition-all duration-200
+                        ${
+                          isActive
+                            ? "opacity-100"
+                            : "opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0"
+                        }
+                      `}
+                    />
+                  </button>
+                );
+              })}
+          </nav>
+
+          {/* Footer */}
+          <div className="pt-4">
+            <div
+              className="
+                rounded-2xl
+                border border-white/10
+                bg-white/[0.03]
+                p-3
+              "
             >
-              <LogOut className="w-4 h-4 lg:w-5 lg:h-5 text-black" />
-            </button>
+              <button
+                onClick={logout}
+                className="
+                  group
+                  flex w-full items-center justify-center
+                  gap-2
+                  rounded-xl
+                  bg-[#1f1f1f]
+                  px-4 py-3
+                  text-sm font-semibold text-white
+                  transition-all duration-200
+                  hover:bg-[#2a2a2a]
+                  hover:scale-[1.01]
+                "
+                aria-label="Logout"
+              >
+                <LogOut
+                  className="
+                    h-4 w-4
+                    transition-transform duration-200
+                    group-hover:-translate-x-0.5
+                  "
+                />
+
+                Logout
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </aside>
     </>
   );
 }
