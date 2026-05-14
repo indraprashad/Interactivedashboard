@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { format, differenceInDays, addDays } from "date-fns";
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,7 +29,11 @@ import { CHECKLIST } from "../data/checklist";
 
 const PER_PAGE = 10;
 
-export function NCList() {
+interface NCListProps {
+  onView?: (ncId: string) => void;
+}
+
+export function NCList({ onView }: NCListProps) {
   const {
     ncs,
     farms,
@@ -102,21 +106,14 @@ export function NCList() {
     [ncs, farms, q, status]
   );
 
-  const totalPages = Math.ceil(
-    enriched.length / PER_PAGE
-  );
+  const capped = useMemo(() => enriched.slice(0, 20), [enriched]);
 
-  const paginatedRows =
-    useMemo(() => {
-      const start =
-        (page - 1) *
-        PER_PAGE;
+  const totalPages = Math.ceil(capped.length / PER_PAGE);
 
-      return enriched.slice(
-        start,
-        start + PER_PAGE
-      );
-    }, [enriched, page]);
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * PER_PAGE;
+    return capped.slice(start, start + PER_PAGE);
+  }, [capped, page]);
 
   const exportRows = enriched.map(
     (n) => ({
@@ -150,50 +147,46 @@ export function NCList() {
     setPage(1);
   };
 
+  const today = new Date();
+  const activeCount  = ncs.filter((n) => n.active).length;
+  const closedCount  = ncs.filter((n) => !n.active).length;
+  const overdueCount = ncs.filter(
+    (n) => n.active && differenceInDays(today, new Date(n.raisedAt)) > 14
+  ).length;
+
   return (
     <div className="space-y-5 p-6">
       {/* Header */}
-      <div
-        className="
-          flex flex-col gap-4
-          rounded-3xl
-          border border-border/60
-          bg-white
-          p-6
-          shadow-sm
-          lg:flex-row
-          lg:items-center
-          lg:justify-between
-        "
-      >
+      <div className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1
-            className="
-              text-3xl
-              font-bold
-              tracking-tight
-            "
-          >
-            Non-Compliance
-            Register
-          </h1>
-
+          <h1 className="text-3xl font-bold tracking-tight">Non-Compliance Register</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {
-              enriched.filter(
-                (n) =>
-                  n.active
-              ).length
-            }{" "}
-            active ·{" "}
-            {enriched.length} total
+            Showing {capped.length} of {enriched.length} records
           </p>
         </div>
+        <ExportButton filename="non-compliance.csv" rows={exportRows} />
+      </div>
 
-        <ExportButton
-          filename="non-compliance.csv"
-          rows={exportRows}
-        />
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="rounded-3xl border-border/60 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Active NCs</p>
+            <p className="mt-1 text-3xl font-bold text-amber-500">{activeCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Closed NCs</p>
+            <p className="mt-1 text-3xl font-bold text-[#1a6b58]">{closedCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-3xl border-border/60 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Overdue (&gt;14 days)</p>
+            <p className="mt-1 text-3xl font-bold text-[#c2410c]">{overdueCount}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -258,206 +251,118 @@ export function NCList() {
         </CardContent>
       </Card>
 
-      {/* Table */}
+      {/* List */}
       <Card className="overflow-hidden rounded-3xl border-border/60 shadow-sm">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              {/* Header */}
-              <thead
-                className="
-                  bg-secondary/40
-                  text-left text-xs
-                  uppercase tracking-wide
-                  text-muted-foreground
-                "
-              >
-                <tr>
-                  <th className="p-4">
-                    S/N
-                  </th>
+          <div className="divide-y divide-border">
+            {paginatedRows.length > 0 ? (
+              paginatedRows.map((n, index) => {
+                const days = differenceInDays(new Date(), new Date(n.raisedAt));
+                const isOverdue = n.active && days > 14;
+                const eligibleDate = addDays(new Date(n.raisedAt), 3);
+                const followUpReady = n.active && eligibleDate <= new Date();
 
-                  <th className="p-4">
-                    Farm
-                  </th>
+                const accentColor = !n.active
+                  ? "#1a6b58"
+                  : isOverdue
+                  ? "#c2410c"
+                  : "#fbbf24";
 
-                  <th className="p-4">
-                    Domain
-                  </th>
+                return (
+                  <div
+                    key={n.id}
+                    className={`flex gap-4 px-6 py-5 transition-colors hover:bg-secondary/20 ${onView ? "cursor-pointer" : ""}`}
+                    style={{ borderLeft: `3px solid ${accentColor}` }}
+                    onClick={() => onView?.(n.id)}
+                  >
+                    {/* Serial number */}
+                    <div className="w-7 pt-0.5 flex-shrink-0 text-sm font-semibold text-muted-foreground">
+                      {(page - 1) * PER_PAGE + index + 1}
+                    </div>
 
-                  <th className="p-4">
-                    Item
-                  </th>
-
-                  <th className="p-4">
-                    Raised
-                  </th>
-
-                  <th className="p-4">
-                    Assessment
-                  </th>
-
-                  <th className="p-4">
-                    Status
-                  </th>
-
-                  <th className="p-4">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-
-              {/* Body */}
-              <tbody className="divide-y divide-border">
-                {paginatedRows.length >
-                0 ? (
-                  paginatedRows.map(
-                    (
-                      n,
-                      index
-                    ) => (
-                      <tr
-                        key={n.id}
-                        className="
-                          transition-colors
-                          hover:bg-secondary/20
-                        "
-                      >
-                        {/* S/N */}
-                        <td className="p-4 font-medium">
-                          {(page - 1) *
-                            PER_PAGE +
-                            index +
-                            1}
-                        </td>
-
-                        {/* Farm */}
-                        <td className="p-4">
-                          <div className="font-medium text-primary">
-                            {
-                              n
-                                .farm
-                                ?.name
-                            }
+                    {/* Main content */}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      {/* Top row: farm + badges + action */}
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-[#0b1f1a]">{n.farm?.name}</span>
+                            <span className="text-xs text-muted-foreground">{n.farm?.dzongkhag}</span>
                           </div>
-
-                          <div
-                            className="
-                              mt-1 text-xs
-                              text-muted-foreground
-                            "
-                          >
-                            {
-                              n
-                                .farm
-                                ?.dzongkhag
-                            }
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                            {/* Domain chip */}
+                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
+                              {n.domain}
+                            </span>
+                            {/* Score badge */}
+                            {n.score === 0 ? (
+                              <span className="rounded px-2 py-0.5 text-[11px] font-semibold bg-red-100 text-red-700">
+                                0 · Poor
+                              </span>
+                            ) : (
+                              <span className="rounded px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-700">
+                                1 · Fair
+                              </span>
+                            )}
+                            {/* Status */}
+                            <ComplianceTag active={n.active} />
+                            {/* Overdue */}
+                            {isOverdue && (
+                              <span className="rounded px-2 py-0.5 text-[11px] font-bold bg-red-100 text-red-600">
+                                Overdue
+                              </span>
+                            )}
                           </div>
-                        </td>
+                        </div>
 
-                        {/* Domain */}
-                        <td
-                          className="
-                            p-4
-                            text-muted-foreground
-                          "
-                        >
-                          {n.domain}
-                        </td>
-
-                        {/* Item */}
-                        <td className="max-w-[320px] p-4">
-                          <div className="line-clamp-2">
-                            {
-                              n.prompt
-                            }
-                          </div>
-                        </td>
-
-                        {/* Raised */}
-                        <td
-                          className="
-                            p-4 text-xs
-                            text-muted-foreground
-                          "
-                        >
-                          {format(
-                            new Date(
-                              n.raisedAt
-                            ),
-                            "dd MMM yyyy"
-                          )}
-                        </td>
-
-                        {/* Assessment */}
-                        <td className="p-4">
-                          <span
-                            className="
-                              text-xs
-                              font-medium
-                              text-primary
-                            "
-                          >
-                            {
-                              n.assessmentId
-                            }
-                          </span>
-                        </td>
-
-                        {/* Status */}
-                        <td className="p-4">
-                          <ComplianceTag
-                            active={
-                              n.active
-                            }
-                          />
-                        </td>
-
-                        {/* Action */}
-                        <td className="p-4">
+                        {/* Action — stop propagation so row click doesn't fire */}
+                        <div onClick={(e) => e.stopPropagation()}>
                           {n.active ? (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="rounded-lg"
+                              className="rounded-lg text-xs"
                               onClick={() => {
-                                closeNC(
-                                  n.id
-                                );
-
-                                toast.success(
-                                  "NC marked closed"
-                                );
+                                closeNC(n.id);
+                                toast.success("NC marked closed");
                               }}
                             >
-                              Close
+                              Mark Closed
                             </Button>
                           ) : (
-                            <span className="text-xs text-muted-foreground">
-                              Closed
-                            </span>
+                            <span className="text-xs text-muted-foreground">Closed</span>
                           )}
-                        </td>
-                      </tr>
-                    )
-                  )
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="
-                        p-10
-                        text-center
-                        text-muted-foreground
-                      "
-                    >
-                      No non-compliance
-                      records found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        </div>
+                      </div>
+
+                      {/* NC item text */}
+                      <p className="text-sm text-foreground/80 leading-relaxed">{n.prompt}</p>
+
+                      {/* Footer row: metadata */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>Raised: <span className="font-medium text-foreground">{format(new Date(n.raisedAt), "dd MMM yyyy")}</span></span>
+                        <span>
+                          Days active:{" "}
+                          <span className={`font-medium ${isOverdue ? "text-red-600" : "text-foreground"}`}>
+                            {days}d
+                          </span>
+                        </span>
+                        <span>Assessment: <span className="font-mono font-medium text-foreground">{n.assessmentId}</span></span>
+                        {n.active && (
+                          <span className={followUpReady ? "text-emerald-600 font-medium" : ""}>
+                            Follow-up eligible: {format(eligibleDate, "dd MMM yyyy")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-10 text-center text-muted-foreground">
+                No non-compliance records found
+              </div>
+            )}
           </div>
 
           {/* Pagination */}
@@ -476,24 +381,15 @@ export function NCList() {
             <div className="text-sm text-muted-foreground">
               Showing{" "}
               <span className="font-medium text-foreground">
-                {enriched.length ===
-                0
-                  ? 0
-                  : (page - 1) *
-                      PER_PAGE +
-                    1}
+                {capped.length === 0 ? 0 : (page - 1) * PER_PAGE + 1}
               </span>{" "}
               to{" "}
               <span className="font-medium text-foreground">
-                {Math.min(
-                  page *
-                    PER_PAGE,
-                  enriched.length
-                )}
+                {Math.min(page * PER_PAGE, capped.length)}
               </span>{" "}
               of{" "}
               <span className="font-medium text-foreground">
-                {enriched.length}
+                {capped.length}
               </span>{" "}
               records
             </div>

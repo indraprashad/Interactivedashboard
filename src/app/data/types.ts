@@ -59,6 +59,15 @@ export type AssessmentStatus =
   | "NC-Follow-Up"
   | "Closed";
 
+export type AssessmentType =
+  | "Regular"
+  | "On Request"
+  | "Follow-Up"
+  | "Complaint"
+  | "Disease Outbreak";
+
+export type FarmCategory = "Commercial" | "Semi-Commercial" | "Subsistence";
+
 export interface NCRecord {
   id: string;
   assessmentId: string;
@@ -66,6 +75,7 @@ export interface NCRecord {
   domainId: string;
   itemId: string;
   prompt: string;
+  score: ScoreValue;
   raisedAt: string;
   closedAt?: string;
   active: boolean;
@@ -85,6 +95,9 @@ export interface Assessment {
   followUpOfId?: string;
   gps?: { lat: number; lng: number };
   notes?: string;
+  assessmentType?: AssessmentType;
+  animalCount?: number;
+  farmCategory?: FarmCategory;
 }
 
 export interface NotificationLogEntry {

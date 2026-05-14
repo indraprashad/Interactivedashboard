@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { StatsCard } from "./StatsCard";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Calendar, MapPin, TrendingUp, Clock } from "lucide-react";
+import { MapPin, TrendingUp, Clock } from "lucide-react";
 
 const statsData = [
   {
@@ -117,7 +117,7 @@ export function DashboardPage() {
             className="bg-white rounded-lg p-4 lg:p-6 shadow-sm"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[#0b1f1a] text-lg lg:text-xl font-bold">Assessments by Dzongkhag</h3>
+              <h3 className="text-[#0b1f1a] text-lg lg:text-xl font-bold">Monthly Assessment Trend</h3>
               <button className="text-[#1a6b58] text-sm font-medium hover:underline">View All</button>
             </div>
             <ResponsiveContainer width="100%" height={250}>

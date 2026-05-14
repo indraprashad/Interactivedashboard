@@ -26,7 +26,12 @@ import { ExportButton } from "../data/ExportButton";
 
 const PER_PAGE = 10;
 
-export function FarmsList() {
+interface FarmsListProps {
+  onView?: (id: string) => void;
+  onAddNonRegistered?: () => void;
+}
+
+export function FarmsList({ onView, onAddNonRegistered }: FarmsListProps) {
   const farms = useStore((s) => s.farms);
 
   const [q, setQ] = useState("");
@@ -146,7 +151,7 @@ export function FarmsList() {
             }
           />
 
-          <Button>
+          <Button onClick={onAddNonRegistered}>
             <Plus className="mr-1.5 h-4 w-4" />
             Non-Registered Farm
           </Button>
@@ -279,6 +284,7 @@ export function FarmsList() {
             <div
               key={f.id}
               className="cursor-pointer"
+              onClick={() => onView?.(f.id)}
             >
               <Card
                 className="

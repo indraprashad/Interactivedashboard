@@ -28,7 +28,7 @@ export function computeScores(responses: ItemResponse[]) {
 }
 
 export function ncCount(responses: ItemResponse[]) {
-  return responses.filter((r) => !r.na && r.score === 0).length;
+  return responses.filter((r) => !r.na && r.score <= 1).length;
 }
 
 function genResponses(seed: number): ItemResponse[] {

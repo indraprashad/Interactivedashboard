@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { Search, UserPlus, Edit, Trash2, Key, MapPin } from "lucide-react";
+import { Search, UserPlus, Edit, Trash2 } from "lucide-react";
 import { userService } from "../../services/userService";
 import { useAuth } from "../../auth/AuthContext";
 import {
@@ -12,7 +12,6 @@ import {
 } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
@@ -20,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { DZONGKHAGS } from "../data/dzongkhags";
 
 type UserRole =
   | "Administrator"
@@ -230,7 +230,10 @@ export function UserManagementPage() {
                     </td>
 
                     <td className="p-3">
-                      <span className="px-2 py-1 text-xs rounded text-black">
+                      <span
+                        className="px-2 py-1 text-xs rounded font-medium"
+                        style={{ background: `${roleColors[user.role]}22`, color: roleColors[user.role] }}
+                      >
                         {user.role}
                       </span>
                     </td>
@@ -241,22 +244,23 @@ export function UserManagementPage() {
 
                     <td className="p-3">
                       <span
-                        className={`text-xs px-2 py-1 rounded ${user.status === "Active"
-                            ? "text-green-900"
-                            : "text-gray-600"
-                          }`}
+                        className={`text-xs px-2 py-1 rounded ${
+                          user.status === "Active"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
                       >
                         {user.status}
                       </span>
                     </td>
 
-                    <td className="p-3 flex gap-2">
+                    <td className="p-3 flex gap-2 items-center">
                       <button onClick={() => handleEditUser(user)}>
                         <Edit className="w-4 h-4 text-green-700" />
                       </button>
 
                       <button
-                        onClick={() => handleDeleteUser(user)}
+                        onClick={() => handleDeleteUser(user.id)}
                         title="Delete User"
                       >
                         <Trash2 className="w-4 h-4 text-red-600" />
@@ -305,24 +309,72 @@ export function UserManagementPage() {
 
             <div className="space-y-3 py-2">
               <Input
-                placeholder="Name"
+                placeholder="Full name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
 
               <Input
                 placeholder="Email"
                 value={formData.email}
                 disabled={!!editingUser}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+
+              <Select
+                value={formData.role}
+                onValueChange={(v) => setFormData({ ...formData, role: v as UserRole })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Administrator">Administrator</SelectItem>
+                  <SelectItem value="Inspector">Inspector</SelectItem>
+                  <SelectItem value="Veterinarian">Veterinarian</SelectItem>
+                  <SelectItem value="Supervisor">Supervisor</SelectItem>
+                  <SelectItem value="Viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={formData.dzongkhag}
+                onValueChange={(v) => setFormData({ ...formData, dzongkhag: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select dzongkhag" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DZONGKHAGS.map((d) => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                placeholder="Phone number"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+              {editingUser && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleToggleStatus(editingUser);
+                    setIsDialogOpen(false);
+                  }}
+                  className={
+                    editingUser.status === "Active"
+                      ? "border-red-200 text-red-600 hover:bg-red-50"
+                      : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  }
+                >
+                  {editingUser.status === "Active" ? "Deactivate User" : "Activate User"}
+                </Button>
+              )}
               <Button onClick={handleSaveUser}>
                 {editingUser ? "Update" : "Create"}
               </Button>

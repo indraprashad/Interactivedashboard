@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
-import { AppShell } from "../data/AppShell";
 import { useStore } from "../../../lib/store";
 
 import { Card, CardContent } from "../components/ui/card";
@@ -22,7 +21,12 @@ import { ExportButton } from "../data/ExportButton";
 
 const PER_PAGE = 10;
 
-export function AssessmentsList() {
+interface AssessmentsListProps {
+  onView: (id: string) => void;
+  onNew: () => void;
+}
+
+export function AssessmentsList({ onView, onNew }: AssessmentsListProps) {
   const { assessments, farms, users } = useStore();
 
   const [q, setQ] = useState("");
@@ -149,7 +153,7 @@ export function AssessmentsList() {
               rows={exportRows}
             />
 
-            <Button>
+            <Button onClick={onNew}>
               <Plus className="mr-1.5 h-4 w-4" />
               New Assessment
             </Button>
@@ -303,9 +307,7 @@ export function AssessmentsList() {
                           {/* ID */}
                           <td className="p-4">
                             <button
-                              onClick={() =>
-                                (window.location.href = `/assessments/${r.id}`)
-                              }
+                              onClick={() => onView(r.id)}
                               className="
                                 font-medium
                                 text-primary

@@ -1,591 +1,567 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useStore } from "../../../lib/store";
 import { motion } from 'motion/react';
-import { MapPin, Filter, AlertTriangle, TrendingDown, TrendingUp, X, Eye, EyeOff } from 'lucide-react';
+import {
+  MapPin, TrendingDown, TrendingUp, X,
+  Eye, EyeOff, Search, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
-
-
-// Import the Bhutan GeoJSON data - in a real app this would be imported from the file
-// For this demo, we'll use the data structure from the provided file
-// In production: import btData from './bt.json';
 import btData from '../../imports/bt.json';
 
-// Calculate farm risk data from the GeoJSON features
-// This creates realistic risk scores based on district geography and name
 const generateRiskDataFromGeoJSON = () => {
   const features = btData.features;
-
   return features.map((feature, index) => {
     const name = feature.properties.name;
-    // Generate realistic risk metrics based on district name and index
-    // This simulates actual farm data for demonstration
-    const nameHash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const seed = (nameHash + index * 7) % 100;
+    const nameHash = name.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
 
-    let total = 0;
-    let low = 0;
-    let medium = 0;
-    let high = 0;
-    let critical = 0;
-    let riskLevel = '';
-    let trend = '';
+    let total = 0, low = 0, medium = 0, high = 0, critical = 0, riskLevel = '', trend = '';
 
-    // Generate realistic farm counts based on district size/population
     if (name === 'Thimphu') {
-      total = 234;
-      low = 180;
-      medium = 42;
-      high = 10;
-      critical = 2;
-      riskLevel = 'Low';
-      trend = 'stable';
+      total = 234; low = 180; medium = 42; high = 10; critical = 2; riskLevel = 'Low'; trend = 'stable';
     } else if (name === 'Paro') {
-      total = 156;
-      low = 110;
-      medium = 32;
-      high = 12;
-      critical = 2;
-      riskLevel = 'Medium';
-      trend = 'improving';
+      total = 156; low = 110; medium = 32; high = 12; critical = 2; riskLevel = 'Medium'; trend = 'improving';
     } else if (name === 'Punakha') {
-      total = 189;
-      low = 120;
-      medium = 45;
-      high = 20;
-      critical = 4;
-      riskLevel = 'Medium';
-      trend = 'deteriorating';
+      total = 189; low = 120; medium = 45; high = 20; critical = 4; riskLevel = 'Medium'; trend = 'deteriorating';
     } else if (name === 'Bumthang') {
-      total = 98;
-      low = 75;
-      medium = 18;
-      high = 4;
-      critical = 1;
-      riskLevel = 'Low';
-      trend = 'stable';
+      total = 98; low = 75; medium = 18; high = 4; critical = 1; riskLevel = 'Low'; trend = 'stable';
     } else if (name === 'Wangdue Phodrang') {
-      total = 142;
-      low = 95;
-      medium = 35;
-      high = 10;
-      critical = 2;
-      riskLevel = 'Medium';
-      trend = 'improving';
+      total = 142; low = 95; medium = 35; high = 10; critical = 2; riskLevel = 'Medium'; trend = 'improving';
     } else if (name === 'Trongsa') {
-      total = 87;
-      low = 68;
-      medium = 15;
-      high = 3;
-      critical = 1;
-      riskLevel = 'Low';
-      trend = 'stable';
+      total = 87; low = 68; medium = 15; high = 3; critical = 1; riskLevel = 'Low'; trend = 'stable';
     } else {
-      // Generate random but realistic data for other districts
-      total = 50 + Math.floor(Math.random() * 150);
-      low = Math.floor(total * (0.4 + Math.random() * 0.4));
-      medium = Math.floor(total * (0.2 + Math.random() * 0.3));
-      high = Math.floor(total * (0.05 + Math.random() * 0.15));
+      const seed = (nameHash + index * 7) % 100;
+      total = 50 + (seed % 150);
+      low = Math.floor(total * (0.4 + (seed % 40) / 100));
+      medium = Math.floor(total * (0.2 + (seed % 30) / 100));
+      high = Math.floor(total * (0.05 + (seed % 15) / 100));
       critical = Math.max(0, total - low - medium - high);
-
-      // Adjust to ensure sums match
       const sum = low + medium + high + critical;
-      if (sum !== total) {
-        const diff = total - sum;
-        if (diff > 0) low += diff;
-        else critical -= diff;
-      }
-
-      // Determine risk level based on high + critical percentage
+      if (sum !== total) low += total - sum;
       const highRiskPercent = (high + critical) / total;
       if (highRiskPercent > 0.25) riskLevel = 'Critical';
       else if (highRiskPercent > 0.15) riskLevel = 'High';
       else if (highRiskPercent > 0.08) riskLevel = 'Medium';
       else riskLevel = 'Low';
-
-      // Random trend
       const trends = ['stable', 'improving', 'deteriorating'];
-      trend = trends[Math.floor(Math.random() * trends.length)];
+      trend = trends[seed % 3];
     }
 
-    return {
-      id: feature.properties.id,
-      name: name,
-      total,
-      low,
-      medium,
-      high,
-      critical,
-      riskLevel,
-      trend,
-      geometry: feature.geometry
-    };
+    return { id: feature.properties.id, name, total, low, medium, high, critical, riskLevel, trend };
   });
 };
 
-const riskLevelColors: Record<string, { bg: string; text: string; map: string }> = {
-  Low: { bg: "#1a6b58", text: "#ffffff", map: "#1a6b58" },
-  Medium: { bg: "#fbbf24", text: "#0b1f1a", map: "#fbbf24" },
-  High: { bg: "#fb923c", text: "#ffffff", map: "#fb923c" },
-  Critical: { bg: "#c2410c", text: "#ffffff", map: "#c2410c" }
+const riskLevelColors: Record<string, { bg: string; text: string }> = {
+  Low:      { bg: "#1a6b58", text: "#ffffff" },
+  Medium:   { bg: "#fbbf24", text: "#0b1f1a" },
+  High:     { bg: "#fb923c", text: "#ffffff" },
+  Critical: { bg: "#c2410c", text: "#ffffff" },
 };
 
-// Color scale for map based on risk level
 const getMapFillColor = (riskLevel: string) => {
   switch (riskLevel) {
-    case 'Low': return '#1a6b58';
-    case 'Medium': return '#fbbf24';
-    case 'High': return '#fb923c';
+    case 'Low':      return '#1a6b58';
+    case 'Medium':   return '#fbbf24';
+    case 'High':     return '#fb923c';
     case 'Critical': return '#c2410c';
-    default: return '#e7efe9';
+    default:         return '#e7efe9';
   }
 };
 
+const ROWS_PER_PAGE = 10;
+
+type Tab = 'map' | 'table';
+
 export function RiskMapPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('map');
+
+  // Map tab state
   const [selectedDistrict, setSelectedDistrict] = useState<any>(null);
-  const [filterRisk, setFilterRisk] = useState<string>('All');
   const [hoveredDistrict, setHoveredDistrict] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(true);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Generate risk data from the imported GeoJSON
+  // Table tab state
+  const [tableSearch, setTableSearch] = useState('');
+  const [tableRisk, setTableRisk] = useState('All');
+  const [tablePage, setTablePage] = useState(1);
+
+  const storeFarms = useStore(s => s.farms);
+  const storeAssessments = useStore(s => s.assessments);
+
   const dzongkhagRiskData = useMemo(() => generateRiskDataFromGeoJSON(), []);
 
-  // Filter data based on selected risk level
-  const filteredData = useMemo(() => {
-    if (filterRisk === 'All') return dzongkhagRiskData;
-    return dzongkhagRiskData.filter(d => d.riskLevel === filterRisk);
-  }, [filterRisk, dzongkhagRiskData]);
-
-  // Statistics for summary cards
   const stats = useMemo(() => {
-    const totalFarms = dzongkhagRiskData.reduce((sum, d) => sum + d.total, 0);
-    const totalCritical = dzongkhagRiskData.reduce((sum, d) => sum + d.critical, 0);
-    const totalHigh = dzongkhagRiskData.reduce((sum, d) => sum + d.high, 0);
-    const highRiskDistricts = dzongkhagRiskData.filter(d => d.riskLevel === 'High' || d.riskLevel === 'Critical').length;
+    const realTotal = storeFarms.length;
+    const nonDraft = storeAssessments.filter(a => a.status !== 'Draft');
+    const latestByFarm = new Map<string, typeof nonDraft[0]>();
+    [...nonDraft]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .forEach(a => { if (!latestByFarm.has(a.farmId)) latestByFarm.set(a.farmId, a); });
+
+    let realHigh = 0;
+    latestByFarm.forEach(a => { if ((a.overallScore ?? 0) <= 40) realHigh++; });
+
+    const realHighRiskDistricts = new Set(
+      storeFarms.filter(f => {
+        const a = latestByFarm.get(f.id);
+        return a && (a.overallScore ?? 0) <= 40;
+      }).map(f => f.dzongkhag)
+    ).size;
+
+    let compliantCount = 0;
+    latestByFarm.forEach(a => { if (a.ncCount === 0) compliantCount++; });
+    const assessedCount = latestByFarm.size;
+    const realCompliancePct = assessedCount > 0 ? Math.round((compliantCount / assessedCount) * 100) : 0;
+
+    const geoTotal = dzongkhagRiskData.reduce((s, d) => s + d.total, 0);
+    const geoHigh = dzongkhagRiskData.reduce((s, d) => s + d.high + d.critical, 0);
+    const geoHighDistricts = dzongkhagRiskData.filter(d => d.riskLevel === 'High' || d.riskLevel === 'Critical').length;
 
     return {
-      totalFarms,
-      totalHighRiskFarms: totalHigh + totalCritical,
-      highRiskDistricts,
-      avgRiskScore: Math.round(((totalHigh + totalCritical) / totalFarms) * 100)
+      totalFarms:        realTotal > 0 ? realTotal : geoTotal,
+      totalHighRiskFarms: realTotal > 0 ? realHigh : geoHigh,
+      highRiskDistricts: realTotal > 0 ? realHighRiskDistricts : geoHighDistricts,
+      compliancePct:     realTotal > 0 ? realCompliancePct : Math.round((1 - geoHigh / geoTotal) * 100),
     };
-  }, [dzongkhagRiskData]);
+  }, [storeFarms, storeAssessments, dzongkhagRiskData]);
+
+  // Table tab filtered + paginated data
+  const tableFiltered = useMemo(() => {
+    return dzongkhagRiskData.filter(d => {
+      const matchSearch = tableSearch === '' || d.name.toLowerCase().includes(tableSearch.toLowerCase());
+      const matchRisk = tableRisk === 'All' || d.riskLevel === tableRisk;
+      return matchSearch && matchRisk;
+    });
+  }, [dzongkhagRiskData, tableSearch, tableRisk]);
+
+  const tableTotalPages = Math.max(1, Math.ceil(tableFiltered.length / ROWS_PER_PAGE));
+  const tableRows = useMemo(
+    () => tableFiltered.slice((tablePage - 1) * ROWS_PER_PAGE, tablePage * ROWS_PER_PAGE),
+    [tableFiltered, tablePage]
+  );
+
+  const handleTableSearch = (v: string) => { setTableSearch(v); setTablePage(1); };
+  const handleTableRisk = (v: string) => { setTableRisk(v); setTablePage(1); };
 
   const handleGeographyClick = useCallback((geo: any) => {
     const district = dzongkhagRiskData.find(d => d.id === geo.properties.id);
-    if (district) {
-      setSelectedDistrict(district);
-    }
+    if (district) setSelectedDistrict(district);
   }, [dzongkhagRiskData]);
 
   const handleGeographyMouseEnter = useCallback((geo: any, event?: any) => {
     setHoveredDistrict(geo.properties.name);
-
-    if (event) {
-      setHoverPos({
-        x: event.clientX,
-        y: event.clientY,
-      });
-    }
+    if (event) setHoverPos({ x: event.clientX, y: event.clientY });
   }, []);
 
-const handleGeographyMouseLeave = useCallback(() => {
-  setHoveredDistrict(null);
-  setHoverPos(null);
-}, []);
+  const handleGeographyMouseLeave = useCallback(() => {
+    setHoveredDistrict(null);
+    setHoverPos(null);
+  }, []);
 
   const closeModal = () => setSelectedDistrict(null);
 
   return (
-    <div className="flex-1 bg-[#e7efe9] p-4 lg:p-8 overflow-auto" style={{ fontFamily: 'Manrope, sans-serif' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-[1400px] mx-auto"
-      >
-        {/* Header */}
-        <div className="mb-6 bg-white rounded-lg p-4">
-          <p className="text-[#8a8a8a] text-sm mb-1">Risk Assessment / Geographic View</p>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h2 className="text-[#0b1f1a] text-2xl lg:text-3xl font-bold">Risk Map</h2>
-              <p className="text-[#8a8a8a] text-sm">Biosecurity risk assessment by region using Bhutan GeoJSON data</p>
+    <div className="space-y-5 p-6" style={{ fontFamily: 'Manrope, sans-serif' }}>
+      {/* Header + tabs */}
+      <div className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-white p-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-[#0b1f1a]">Risk Map</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Biosecurity risk assessment by region · {dzongkhagRiskData.length} Dzongkhags
+            </p>
+          </div>
+        </div>
+        {/* Tab switcher */}
+        <div className="flex gap-2 border-b border-border/60 pb-0">
+          <button
+            onClick={() => setActiveTab('map')}
+            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'map'
+                ? 'border-[#1a6b58] text-[#1a6b58]'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Interactive Risk Map
+          </button>
+          <button
+            onClick={() => setActiveTab('table')}
+            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'table'
+                ? 'border-[#1a6b58] text-[#1a6b58]'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Risk Table
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'map' && (
+        <>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-3xl border border-border/60 p-5 shadow-sm">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Farms</p>
+              <p className="text-3xl font-bold text-[#0b1f1a] mt-1">{stats.totalFarms.toLocaleString()}</p>
+              <p className="text-xs text-[#1a6b58] mt-1">Across {dzongkhagRiskData.length} Dzongkhags</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
+              className="bg-white rounded-3xl border border-border/60 p-5 shadow-sm">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">High Risk Farms</p>
+              <p className="text-3xl font-bold text-[#c2410c] mt-1">{stats.totalHighRiskFarms.toLocaleString()}</p>
+              <p className="text-xs text-[#c2410c] mt-1">
+                {Math.round((stats.totalHighRiskFarms / (stats.totalFarms || 1)) * 100)}% of total
+              </p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
+              className="bg-white rounded-3xl border border-border/60 p-5 shadow-sm">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">High-Risk Districts</p>
+              <p className="text-3xl font-bold text-[#fb923c] mt-1">{stats.highRiskDistricts}</p>
+              <p className="text-xs text-[#fb923c] mt-1">Require immediate attention</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}
+              className="bg-white rounded-3xl border border-border/60 p-5 shadow-sm">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Compliance Rate</p>
+              <p className="text-3xl font-bold text-[#1a6b58] mt-1">{stats.compliancePct}%</p>
+              <p className="text-xs text-[#1a6b58] mt-1">Of assessed farms</p>
+            </motion.div>
+          </div>
+
+          {/* Risk Legend */}
+          <div className="bg-white rounded-3xl border border-border/60 p-5 shadow-sm">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">Risk Level Legend</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { label: 'Low Risk',      color: '#1a6b58', score: 'Score > 60' },
+                { label: 'Medium Risk',   color: '#fbbf24', score: 'Score 41–60' },
+                { label: 'High Risk',     color: '#fb923c', score: 'Score 21–40' },
+                { label: 'Critical Risk', color: '#c2410c', score: 'Score ≤ 20' },
+              ].map(({ label, color, score }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
+                  <div>
+                    <p className="text-sm font-semibold text-[#0b1f1a]">{label}</p>
+                    <p className="text-xs text-muted-foreground">{score}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex gap-2">
-              <select
-                value={filterRisk}
-                onChange={(e) => setFilterRisk(e.target.value)}
-                className="px-4 py-2 bg-white border border-[#8a8a8a] text-[#0b1f1a] rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1a6b58]"
+          </div>
+
+          {/* Interactive Map */}
+          <div className="bg-white rounded-3xl border border-border/60 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold">Bhutan Dzongkhag Risk Map</h3>
+                <button
+                  onClick={() => setShowMap(prev => !prev)}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition"
+                  title={showMap ? 'Hide map' : 'Show map'}
+                >
+                  {showMap
+                    ? <Eye className="w-4 h-4 text-[#1a6b58]" />
+                    : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+                </button>
+              </div>
+              {hoveredDistrict && (
+                <div className="text-sm text-[#1a6b58] bg-[#e7efe9] px-3 py-1 rounded-full">
+                  {hoveredDistrict}
+                </div>
+              )}
+            </div>
+            {showMap && (
+              <div
+                className="w-full h-[500px] rounded-2xl overflow-hidden border border-border/60"
+                onWheelCapture={e => { e.preventDefault(); e.stopPropagation(); }}
               >
-                <option value="All">All Districts</option>
+                <ComposableMap
+                  projection="geoMercator"
+                  projectionConfig={{ scale: 18000, center: [90.5, 27.5] }}
+                  style={{ width: '100%', height: '100%', touchAction: 'none' }}
+                >
+                  <ZoomableGroup zoom={1} center={[90.5, 27.5]} disablePanning
+                    onMoveStart={() => {}} onMoveEnd={() => {}} onMove={() => {}}>
+                    <Geographies geography={btData}>
+                      {({ geographies }) =>
+                        geographies.map(geo => {
+                          const d = dzongkhagRiskData.find(x => x.id === geo.properties.id);
+                          return (
+                            <Geography
+                              key={geo.rsmKey}
+                              geography={geo}
+                              fill={d ? getMapFillColor(d.riskLevel) : '#e2e8f0'}
+                              stroke="#ffffff"
+                              strokeWidth={0.5}
+                              style={{
+                                default: { outline: 'none', cursor: 'pointer' },
+                                hover: { outline: 'none', fill: '#fbbf24', transition: 'all 250ms' },
+                                pressed: { outline: 'none' },
+                              }}
+                              onClick={() => handleGeographyClick(geo)}
+                              onMouseEnter={(event) => handleGeographyMouseEnter(geo, event)}
+                              onMouseLeave={handleGeographyMouseLeave}
+                            />
+                          );
+                        })
+                      }
+                    </Geographies>
+                  </ZoomableGroup>
+                </ComposableMap>
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground px-1">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#1a6b58] inline-block" /> Low</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#fbbf24] inline-block" /> Medium</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#fb923c] inline-block" /> High</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#c2410c] inline-block" /> Critical</span>
+              <span>Click any district for details</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'table' && (
+        <>
+          {/* Table filters */}
+          <div className="bg-white rounded-3xl border border-border/60 p-4 shadow-sm">
+            <div className="grid gap-3 lg:grid-cols-3">
+              <div className="relative lg:col-span-2">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={tableSearch}
+                  onChange={e => handleTableSearch(e.target.value)}
+                  placeholder="Search by Dzongkhag..."
+                  className="h-11 w-full rounded-xl border border-border pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a6b58]/30"
+                />
+              </div>
+              <select
+                value={tableRisk}
+                onChange={e => handleTableRisk(e.target.value)}
+                className="h-11 rounded-xl border border-border px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a6b58]/30"
+              >
+                <option value="All">All Risk Levels</option>
                 <option value="Low">Low Risk</option>
                 <option value="Medium">Medium Risk</option>
                 <option value="High">High Risk</option>
                 <option value="Critical">Critical Risk</option>
               </select>
-              <button className="px-4 py-2 bg-white border border-[#8a8a8a] text-[#0b1f1a] rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
-                <Filter className="w-4 h-4" />
-                More Filters
-              </button>
             </div>
           </div>
-        </div>
 
-        {/* Summary Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-5 shadow-sm"
-          >
-            <p className="text-[#8a8a8a] text-sm">Total Farms</p>
-            <p className="text-2xl font-bold text-[#0b1f1a]">{stats.totalFarms.toLocaleString()}</p>
-            <p className="text-xs text-[#1a6b58]">Across {dzongkhagRiskData.length} Dzongkhags</p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.05 }}
-            className="bg-white rounded-lg p-5 shadow-sm"
-          >
-            <p className="text-[#8a8a8a] text-sm">High Risk Farms</p>
-            <p className="text-2xl font-bold text-[#c2410c]">{stats.totalHighRiskFarms.toLocaleString()}</p>
-            <p className="text-xs text-[#c2410c]">{stats.avgRiskScore}% of total farms</p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg p-5 shadow-sm"
-          >
-            <p className="text-[#8a8a8a] text-sm">High-Risk Districts</p>
-            <p className="text-2xl font-bold text-[#fb923c]">{stats.highRiskDistricts}</p>
-            <p className="text-xs text-[#fb923c]">Require immediate attention</p>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15 }}
-            className="bg-white rounded-lg p-5 shadow-sm"
-          >
-            <p className="text-[#8a8a8a] text-sm">Compliance Rate</p>
-            <p className="text-2xl font-bold text-[#1a6b58]">78%</p>
-            <p className="text-xs text-[#1a6b58]">+5% from last quarter</p>
-          </motion.div>
-        </div>
-
-        {/* Risk Legend */}
-        <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm mb-6">
-          <h3 className="text-[#0b1f1a] text-lg font-bold mb-4">Risk Level Legend</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#1a6b58]" />
-              <div>
-                <p className="text-[#0b1f1a] font-bold text-sm">Low Risk</p>
-                <p className="text-[#8a8a8a] text-xs">Score: 2.0 - 3.0</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#fbbf24]" />
-              <div>
-                <p className="text-[#0b1f1a] font-bold text-sm">Medium Risk</p>
-                <p className="text-[#8a8a8a] text-xs">Score: 1.5 - 1.9</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#fb923c]" />
-              <div>
-                <p className="text-[#0b1f1a] font-bold text-sm">High Risk</p>
-                <p className="text-[#8a8a8a] text-xs">Score: 1.0 - 1.4</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#c2410c]" />
-              <div>
-                <p className="text-[#0b1f1a] font-bold text-sm">Critical Risk</p>
-                <p className="text-[#8a8a8a] text-xs">Score: 0.0 - 0.9</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Interactive Map */}
-        <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[#0b1f1a] text-lg font-bold">
-                Interactive Risk Map
-              </h3>
-
-              <button
-                onClick={() => setShowMap(prev => !prev)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition flex items-center gap-1"
-                title={showMap ? "Hide map" : "Show map"}
-              >
-                {showMap ? (
-                  <Eye className="w-4 h-4 text-[#1a6b58]" />
-                ) : (
-                  <EyeOff className="w-4 h-4 text-[#8a8a8a]" />
-                )}
-              </button>
-            </div>
-
-            {hoveredDistrict && (
-              <div className="text-sm text-[#1a6b58] bg-[#e7efe9] px-3 py-1 rounded-full">
-                Hovering: {hoveredDistrict}
-              </div>
-            )}
-          </div>
-          {showMap && (
-            <div
-              className="w-full h-[500px] rounded-lg overflow-hidden border border-gray-200"
-              onWheelCapture={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
-              <ComposableMap
-                projection="geoMercator"
-                projectionConfig={{
-                  scale: 18000,
-                  center: [90.5, 27.5],
-                }}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  touchAction: "none"
-                }}
-              >
-                <ZoomableGroup
-                  zoom={1}
-                  center={[90.5, 27.5]}
-                  disablePanning
-                  onMoveStart={() => { }}
-                  onMoveEnd={() => { }}
-                  onMove={() => { }}
-                >
-                  <Geographies geography={btData}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => {
-                        const districtData = dzongkhagRiskData.find(
-                          (d) => d.id === geo.properties.id
-                        );
-
-                        const fillColor = districtData
-                          ? getMapFillColor(districtData.riskLevel)
-                          : "#e2e8f0";
-
-                        return (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            fill={fillColor}
-                            stroke="#ffffff"
-                            strokeWidth={0.5}
-                            style={{
-                              default: { outline: "none", cursor: "pointer" },
-                              hover: {
-                                outline: "none",
-                                fill: "#fbbf24",
-                                transition: "all 250ms",
-                              },
-                              pressed: { outline: "none" },
-                            }}
-                            onClick={() => handleGeographyClick(geo)}
-                            onMouseEnter={(event) => handleGeographyMouseEnter(geo, event)}
-                            onMouseLeave={handleGeographyMouseLeave}
-                          />
-                        );
-                      })
-                    }
-                  </Geographies>
-                </ZoomableGroup>
-              </ComposableMap>
-            </div>
-          )}
-          <div className="p-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex justify-between">
-            <span>◼ Green: Low Risk</span>
-            <span>◼ Yellow: Medium Risk</span>
-            <span>◼ Orange: High Risk</span>
-            <span>◼ Red: Critical Risk</span>
-            <span>Click on any district for details</span>
-          </div>
-        </div>
-
-
-        {/* District Risk Table */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="p-4 lg:p-6 border-b border-gray-200">
-            <h3 className="text-[#0b1f1a] text-xl font-bold">Risk Assessment by Dzongkhag</h3>
-            <p className="text-[#8a8a8a] text-sm mt-1">Based on farm compliance data from {dzongkhagRiskData.length} districts</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm">Dzongkhag</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm">Total Farms</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm hidden lg:table-cell">Low</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm hidden lg:table-cell">Medium</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm hidden lg:table-cell">High</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm hidden lg:table-cell">Critical</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm">Risk Level</th>
-                  <th className="text-left py-3 px-4 text-[#8a8a8a] font-bold text-sm hidden xl:table-cell">Trend</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((dzongkhag, index) => (
-                  <motion.tr
-                    key={dzongkhag.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.03 }}
-                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setSelectedDistrict(dzongkhag)}
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-[#1a6b58]" />
-                        <span className="text-[#0b1f1a] font-bold">{dzongkhag.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-[#0b1f1a] font-bold">{dzongkhag.total}</td>
-                    <td className="py-4 px-4 text-[#8a8a8a] hidden lg:table-cell">{dzongkhag.low}</td>
-                    <td className="py-4 px-4 text-[#8a8a8a] hidden lg:table-cell">{dzongkhag.medium}</td>
-                    <td className="py-4 px-4 text-[#8a8a8a] hidden lg:table-cell">{dzongkhag.high}</td>
-                    <td className="py-4 px-4 text-[#8a8a8a] hidden lg:table-cell">{dzongkhag.critical}</td>
-                    <td className="py-4 px-4">
-                      <span
-                        className="px-3 py-1 rounded-full text-xs font-bold"
-                        style={{
-                          backgroundColor: riskLevelColors[dzongkhag.riskLevel].bg,
-                          color: riskLevelColors[dzongkhag.riskLevel].text
-                        }}
+          {/* Table */}
+          <div className="overflow-hidden rounded-3xl border border-border/60 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="p-4">S/N</th>
+                    <th className="p-4">Dzongkhag</th>
+                    <th className="p-4 text-right">Total Farms</th>
+                    <th className="p-4 text-right text-[#1a6b58]">Low</th>
+                    <th className="p-4 text-right text-[#fbbf24]">Medium</th>
+                    <th className="p-4 text-right text-[#fb923c]">High</th>
+                    <th className="p-4 text-right text-[#c2410c]">Critical</th>
+                    <th className="p-4">Risk Level</th>
+                    <th className="p-4">Trend</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {tableRows.length > 0 ? (
+                    tableRows.map((d, i) => (
+                      <tr
+                        key={d.id}
+                        className="hover:bg-secondary/20 transition-colors cursor-pointer"
+                        onClick={() => setSelectedDistrict(d)}
                       >
-                        {dzongkhag.riskLevel}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 hidden xl:table-cell">
-                      <div className="flex items-center gap-1">
-                        {dzongkhag.trend === "improving" && (
-                          <>
-                            <TrendingDown className="w-4 h-4 text-[#1a6b58]" />
-                            <span className="text-[#1a6b58] text-sm">Improving</span>
-                          </>
-                        )}
-                        {dzongkhag.trend === "deteriorating" && (
-                          <>
-                            <TrendingUp className="w-4 h-4 text-[#c2410c]" />
-                            <span className="text-[#c2410c] text-sm">Deteriorating</span>
-                          </>
-                        )}
-                        {dzongkhag.trend === "stable" && (
-                          <span className="text-[#8a8a8a] text-sm">Stable</span>
-                        )}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </motion.div>
+                        <td className="p-4 font-medium text-muted-foreground">
+                          {(tablePage - 1) * ROWS_PER_PAGE + i + 1}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2 font-medium">
+                            <MapPin className="h-4 w-4 text-[#1a6b58] flex-shrink-0" />
+                            {d.name}
+                          </div>
+                        </td>
+                        <td className="p-4 text-right font-semibold">{d.total}</td>
+                        <td className="p-4 text-right font-medium text-[#1a6b58]">{d.low}</td>
+                        <td className="p-4 text-right font-medium text-amber-600">{d.medium}</td>
+                        <td className="p-4 text-right font-medium text-orange-500">{d.high}</td>
+                        <td className="p-4 text-right font-medium text-[#c2410c]">{d.critical}</td>
+                        <td className="p-4">
+                          <span
+                            className="inline-block rounded-full px-3 py-0.5 text-xs font-bold"
+                            style={{
+                              backgroundColor: riskLevelColors[d.riskLevel].bg,
+                              color: riskLevelColors[d.riskLevel].text,
+                            }}
+                          >
+                            {d.riskLevel}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          {d.trend === 'improving' && (
+                            <span className="flex items-center gap-1 text-[#1a6b58]">
+                              <TrendingUp className="h-4 w-4" />
+                              <span className="text-xs">Improving</span>
+                            </span>
+                          )}
+                          {d.trend === 'deteriorating' && (
+                            <span className="flex items-center gap-1 text-[#c2410c]">
+                              <TrendingDown className="h-4 w-4" />
+                              <span className="text-xs">Deteriorating</span>
+                            </span>
+                          )}
+                          {d.trend === 'stable' && (
+                            <span className="text-xs text-muted-foreground">Stable</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} className="p-10 text-center text-muted-foreground">
+                        No districts match your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-      {/* District Detail Modal */}
+            {/* Pagination */}
+            <div className="flex flex-col gap-4 border-t border-border bg-background/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing{' '}
+                <span className="font-medium text-foreground">
+                  {tableFiltered.length === 0 ? 0 : (tablePage - 1) * ROWS_PER_PAGE + 1}
+                </span>{' '}
+                to{' '}
+                <span className="font-medium text-foreground">
+                  {Math.min(tablePage * ROWS_PER_PAGE, tableFiltered.length)}
+                </span>{' '}
+                of{' '}
+                <span className="font-medium text-foreground">{tableFiltered.length}</span>{' '}
+                districts
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTablePage(p => p - 1)}
+                  disabled={tablePage === 1}
+                  className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm font-medium disabled:opacity-40 hover:bg-secondary/40 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: tableTotalPages }).map((_, idx) => {
+                    const pg = idx + 1;
+                    return (
+                      <button
+                        key={pg}
+                        onClick={() => setTablePage(pg)}
+                        className={`min-w-9 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                          tablePage === pg
+                            ? 'bg-[#1a6b58] text-white border-[#1a6b58]'
+                            : 'border-border hover:bg-secondary/40'
+                        }`}
+                      >
+                        {pg}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setTablePage(p => p + 1)}
+                  disabled={tablePage === tableTotalPages}
+                  className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm font-medium disabled:opacity-40 hover:bg-secondary/40 transition-colors"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* District Detail Modal (shared between both tabs) */}
       {selectedDistrict && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={closeModal}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-white rounded-xl max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl"
+            onClick={e => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[#1a6b58]" />
                 <h3 className="text-xl font-bold text-[#0b1f1a]">{selectedDistrict.name}</h3>
               </div>
-              <button onClick={closeModal} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5 text-[#8a8a8a]" />
+              <button onClick={closeModal} className="p-1.5 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-[#8a8a8a]">Risk Level</span>
+              <div className="flex justify-between items-center pb-3 border-b border-border/60">
+                <span className="text-sm text-muted-foreground">Risk Level</span>
                 <span
                   className="px-3 py-1 rounded-full text-xs font-bold"
                   style={{
                     backgroundColor: riskLevelColors[selectedDistrict.riskLevel].bg,
-                    color: riskLevelColors[selectedDistrict.riskLevel].text
+                    color: riskLevelColors[selectedDistrict.riskLevel].text,
                   }}
                 >
                   {selectedDistrict.riskLevel}
                 </span>
               </div>
-
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-[#8a8a8a]">Total Farms</span>
+              <div className="flex justify-between items-center pb-3 border-b border-border/60">
+                <span className="text-sm text-muted-foreground">Total Farms</span>
                 <span className="font-bold text-[#0b1f1a]">{selectedDistrict.total}</span>
               </div>
 
               <div className="space-y-2">
-                <p className="text-[#8a8a8a] text-sm">Risk Breakdown</p>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                  <div
-                    className="bg-[#1a6b58] h-full"
-                    style={{ width: `${(selectedDistrict.low / selectedDistrict.total) * 100}%` }}
-                  />
-                  <div
-                    className="bg-[#fbbf24] h-full"
-                    style={{ width: `${(selectedDistrict.medium / selectedDistrict.total) * 100}%` }}
-                  />
-                  <div
-                    className="bg-[#fb923c] h-full"
-                    style={{ width: `${(selectedDistrict.high / selectedDistrict.total) * 100}%` }}
-                  />
-                  <div
-                    className="bg-[#c2410c] h-full"
-                    style={{ width: `${(selectedDistrict.critical / selectedDistrict.total) * 100}%` }}
-                  />
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Risk Breakdown</p>
+                <div className="h-2.5 bg-secondary rounded-full overflow-hidden flex">
+                  <div className="bg-[#1a6b58] h-full" style={{ width: `${(selectedDistrict.low / selectedDistrict.total) * 100}%` }} />
+                  <div className="bg-[#fbbf24] h-full" style={{ width: `${(selectedDistrict.medium / selectedDistrict.total) * 100}%` }} />
+                  <div className="bg-[#fb923c] h-full" style={{ width: `${(selectedDistrict.high / selectedDistrict.total) * 100}%` }} />
+                  <div className="bg-[#c2410c] h-full" style={{ width: `${(selectedDistrict.critical / selectedDistrict.total) * 100}%` }} />
                 </div>
-                <div className="flex justify-between text-xs">
+                <div className="grid grid-cols-2 gap-1 text-xs">
                   <span className="text-[#1a6b58]">Low: {selectedDistrict.low}</span>
-                  <span className="text-[#fbbf24]">Medium: {selectedDistrict.medium}</span>
-                  <span className="text-[#fb923c]">High: {selectedDistrict.high}</span>
+                  <span className="text-amber-500">Medium: {selectedDistrict.medium}</span>
+                  <span className="text-orange-500">High: {selectedDistrict.high}</span>
                   <span className="text-[#c2410c]">Critical: {selectedDistrict.critical}</span>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                <span className="text-[#8a8a8a]">Trend</span>
+              <div className="flex justify-between items-center pb-3 border-b border-border/60">
+                <span className="text-sm text-muted-foreground">Trend</span>
                 <div className="flex items-center gap-1">
-                  {selectedDistrict.trend === "improving" && (
-                    <>
-                      <TrendingDown className="w-4 h-4 text-[#1a6b58]" />
-                      <span className="text-[#1a6b58] text-sm">Improving</span>
-                    </>
+                  {selectedDistrict.trend === 'improving' && (
+                    <><TrendingUp className="w-4 h-4 text-[#1a6b58]" /><span className="text-sm text-[#1a6b58]">Improving</span></>
                   )}
-                  {selectedDistrict.trend === "deteriorating" && (
-                    <>
-                      <TrendingUp className="w-4 h-4 text-[#c2410c]" />
-                      <span className="text-[#c2410c] text-sm">Deteriorating</span>
-                    </>
+                  {selectedDistrict.trend === 'deteriorating' && (
+                    <><TrendingDown className="w-4 h-4 text-[#c2410c]" /><span className="text-sm text-[#c2410c]">Deteriorating</span></>
                   )}
-                  {selectedDistrict.trend === "stable" && (
-                    <span className="text-[#8a8a8a] text-sm">Stable</span>
+                  {selectedDistrict.trend === 'stable' && (
+                    <span className="text-sm text-muted-foreground">Stable</span>
                   )}
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button className="flex-1 px-4 py-2 bg-[#1a6b58] text-white rounded-lg text-sm font-medium hover:bg-[#0b1f1a]">
-                  View Detailed Report
+              <div className="flex gap-3 pt-2">
+                <button className="flex-1 px-4 py-2 bg-[#1a6b58] text-white rounded-xl text-sm font-medium hover:bg-[#0b1f1a] transition-colors">
+                  View Report
                 </button>
-                <button className="px-4 py-2 border border-[#8a8a8a] text-[#0b1f1a] rounded-lg text-sm font-medium hover:bg-gray-50">
-                  Export Data
+                <button className="px-4 py-2 border border-border text-[#0b1f1a] rounded-xl text-sm font-medium hover:bg-secondary/40 transition-colors">
+                  Export
                 </button>
               </div>
             </div>
@@ -593,54 +569,39 @@ const handleGeographyMouseLeave = useCallback(() => {
         </div>
       )}
 
-      {hoveredDistrict && hoverPos && (
+      {/* Map hover tooltip */}
+      {hoveredDistrict && hoverPos && activeTab === 'map' && (
         <div
-          className="fixed z-50 bg-white shadow-xl rounded-xl border border-gray-200 p-4 w-64"
-          style={{
-            top: hoverPos.y + 15,
-            left: hoverPos.x + 15,
-            pointerEvents: "none",
-          }}
+          className="fixed z-50 bg-white shadow-xl rounded-2xl border border-border/60 p-4 w-56"
+          style={{ top: hoverPos.y + 15, left: hoverPos.x + 15, pointerEvents: 'none' }}
         >
           {(() => {
-            const data = dzongkhagRiskData.find(
-              (d) => d.name === hoveredDistrict
-            );
-
+            const data = dzongkhagRiskData.find(d => d.name === hoveredDistrict);
             if (!data) return null;
-
             return (
               <>
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="w-4 h-4 text-[#1a6b58]" />
-                  <h4 className="font-bold text-[#0b1f1a]">{data.name}</h4>
+                  <h4 className="font-bold text-[#0b1f1a] text-sm">{data.name}</h4>
                 </div>
-
-                <div className="space-y-1 text-sm">
-                  <p className="text-gray-600">
-                    <span className="font-medium">Risk:</span>{" "}
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Risk Level</span>
                     <span
-                      className="px-2 py-0.5 rounded text-xs font-bold"
-                      style={{
-                        backgroundColor: riskLevelColors[data.riskLevel].bg,
-                        color: riskLevelColors[data.riskLevel].text,
-                      }}
+                      className="px-2 py-0.5 rounded font-bold"
+                      style={{ backgroundColor: riskLevelColors[data.riskLevel].bg, color: riskLevelColors[data.riskLevel].text }}
                     >
                       {data.riskLevel}
                     </span>
-                  </p>
-
-                  <p className="text-gray-600">
-                    Total Farms: <span className="font-bold">{data.total}</span>
-                  </p>
-
-                  <p className="text-gray-600">
-                    High Risk: <span className="font-bold text-[#c2410c]">{data.high + data.critical}</span>
-                  </p>
-
-                  <p className="text-gray-600">
-                    Trend: <span className="font-bold">{data.trend}</span>
-                  </p>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Farms</span>
+                    <span className="font-bold">{data.total}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">High + Critical</span>
+                    <span className="font-bold text-[#c2410c]">{data.high + data.critical}</span>
+                  </div>
                 </div>
               </>
             );

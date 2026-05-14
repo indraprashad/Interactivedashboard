@@ -10,7 +10,7 @@ function deriveNCs(assessments: Assessment[]): NCRecord[] {
   const out: NCRecord[] = [];
   for (const a of assessments) {
     for (const r of a.responses) {
-      if (r.na || r.score !== 0) continue;
+      if (r.na || r.score > 1) continue;
       const domain = CHECKLIST.find((d) => d.items.some((i) => i.id === r.itemId));
       const item = domain?.items.find((i) => i.id === r.itemId);
       if (!domain || !item) continue;
@@ -21,6 +21,7 @@ function deriveNCs(assessments: Assessment[]): NCRecord[] {
         domainId: domain.id,
         itemId: r.itemId,
         prompt: item.prompt,
+        score: r.score,
         raisedAt: a.date,
         active: a.status !== "Closed",
       });

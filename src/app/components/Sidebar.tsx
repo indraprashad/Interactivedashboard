@@ -7,6 +7,7 @@ import {
   FileText,
   Map,
   Users,
+  Bell,
   LogOut,
   Menu,
   X,
@@ -59,6 +60,12 @@ const navItems: NavItem[] = [
     id: "risk-map",
     label: "Risk Map",
     icon: Map,
+    permission: "view_dashboard",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
     permission: "view_dashboard",
   },
   {
